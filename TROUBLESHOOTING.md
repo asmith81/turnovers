@@ -101,6 +101,20 @@ Document issues encountered during development and deployment, along with soluti
 
 ---
 
+## TODO / Reminders
+
+- [ ] **ADD SECRETS TO .env.local** - Need to get:
+  - ANTHROPIC_API_KEY (from Anthropic console)
+  - GOOGLE_SHEETS_ID (from Google Sheets URL)
+  - GOOGLE_SERVICE_ACCOUNT_EMAIL (from Google Cloud Console)
+  - GOOGLE_PRIVATE_KEY (from service account JSON)
+  
+  See `.env.local.example` for format
+
+- 
+
+---
+
 ## Quick Reference / Common Commands
 
 ```bash

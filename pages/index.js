@@ -1,0 +1,354 @@
+import { useState } from 'react';
+import Head from 'next/head';
+import InputSection from '../components/InputSection';
+import ConversationView from '../components/ConversationView';
+import DataTable from '../components/DataTable';
+import ScopePreview from '../components/ScopePreview';
+import { mockProcessAPI, mockSubmitAPI, mockStructuredData } from '../lib/mockData';
+
+export default function Home() {
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [structuredData, setStructuredData] = useState({
+    projectInfo: { address: '', date: '', assessor: '' },
+    workItems: [],
+    notes: ''
+  });
+  const [englishScope, setEnglishScope] = useState('');
+  const [spanishScope, setSpanishScope] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [currentStep, setCurrentStep] = useState('input'); // input, review, approved, submitted
+
+  // Mock mode flag - set to false when APIs are ready
+  const MOCK_MODE = true;
+
+  const handleUserInput = async (userInput) => {
+    setIsProcessing(true);
+
+    // Add user message to history
+    const newHistory = [
+      ...conversationHistory,
+      { role: 'user', content: userInput }
+    ];
+    setConversationHistory(newHistory);
+
+    try {
+      let result;
+      
+      if (MOCK_MODE) {
+        // Use mock API
+        result = await mockProcessAPI(userInput, structuredData, newHistory);
+      } else {
+        // Real API call
+        const response = await fetch('/api/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userInput,
+            currentData: structuredData,
+            conversationHistory: newHistory
+          })
+        });
+        result = await response.json();
+      }
+
+      // Add assistant response to history
+      const updatedHistory = [
+        ...newHistory,
+        { role: 'assistant', content: result.assistantMessage }
+      ];
+      setConversationHistory(updatedHistory);
+
+      // Update structured data if changed
+      if (result.updatedData) {
+        setStructuredData(result.updatedData);
+      }
+
+      // Check if conversation is complete
+      if (result.isComplete) {
+        setIsComplete(true);
+        setCurrentStep('review');
+      }
+
+    } catch (error) {
+      console.error('Error processing input:', error);
+      // Add error message to conversation
+      setConversationHistory([
+        ...newHistory,
+        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }
+      ]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGenerateScopes = async () => {
+    setIsProcessing(true);
+    setCurrentStep('approved');
+
+    try {
+      let result;
+      
+      if (MOCK_MODE) {
+        // Use mock API
+        result = await mockSubmitAPI(structuredData);
+      } else {
+        // Real API call
+        const response = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ structuredData })
+        });
+        result = await response.json();
+      }
+
+      if (result.success) {
+        setEnglishScope(result.englishScope);
+        setSpanishScope(result.spanishScope);
+        setIsSubmitted(true);
+        setCurrentStep('submitted');
+      }
+
+    } catch (error) {
+      console.error('Error submitting:', error);
+      alert('Failed to generate scopes. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReset = () => {
+    setConversationHistory([]);
+    setStructuredData({
+      projectInfo: { address: '', date: '', assessor: '' },
+      workItems: [],
+      notes: ''
+    });
+    setEnglishScope('');
+    setSpanishScope('');
+    setIsComplete(false);
+    setIsSubmitted(false);
+    setCurrentStep('input');
+  };
+
+  const loadMockData = () => {
+    setStructuredData(mockStructuredData);
+    setConversationHistory([
+      { role: 'user', content: 'I need 3 walls painted in the living room' },
+      { role: 'assistant', content: 'Got it. What\'s the square footage?' },
+      { role: 'user', content: 'About 450 square feet total' },
+      { role: 'assistant', content: 'Any other work needed?' },
+      { role: 'user', content: 'Yes, clean the bedroom floors, 250 square feet' },
+      { role: 'assistant', content: 'Perfect. I have all the information. Ready to generate scope.' }
+    ]);
+    setIsComplete(true);
+    setCurrentStep('review');
+  };
+
+  return (
+    <div className="container">
+      <Head>
+        <title>Turnovers - Job Site Assessment</title>
+        <meta name="description" content="Streamline job site assessments" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <main>
+        <header>
+          <h1>🔨 Turnovers</h1>
+          <p className="subtitle">Job Site Assessment Tool</p>
+          {MOCK_MODE && (
+            <div className="mock-banner">
+              🧪 MOCK MODE - Using simulated data (APIs not connected)
+            </div>
+          )}
+        </header>
+
+        <div className="layout">
+          {/* Left Column - Input & Conversation */}
+          <div className="left-column">
+            <InputSection 
+              onSubmit={handleUserInput}
+              isProcessing={isProcessing}
+              disabled={isComplete}
+            />
+            
+            <ConversationView history={conversationHistory} />
+            
+            {/* Action Buttons */}
+            <div className="actions">
+              {MOCK_MODE && !isComplete && (
+                <button onClick={loadMockData} className="btn btn-secondary">
+                  Load Mock Data
+                </button>
+              )}
+              
+              {isComplete && !isSubmitted && (
+                <button 
+                  onClick={handleGenerateScopes} 
+                  className="btn btn-success"
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? 'Generating...' : 'Generate Scopes & Submit'}
+                </button>
+              )}
+              
+              {isSubmitted && (
+                <button onClick={handleReset} className="btn btn-secondary">
+                  Start New Assessment
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column - Data & Scopes */}
+          <div className="right-column">
+            <DataTable data={structuredData} />
+            
+            {(englishScope || spanishScope) && (
+              <ScopePreview 
+                englishScope={englishScope}
+                spanishScope={spanishScope}
+              />
+            )}
+            
+            {isSubmitted && (
+              <div className="success-message">
+                ✅ Successfully submitted to Google Sheets!
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+
+      <style jsx>{`
+        .container {
+          min-height: 100vh;
+          background: #f5f5f5;
+        }
+        
+        main {
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        
+        header {
+          text-align: center;
+          margin-bottom: 32px;
+        }
+        
+        h1 {
+          margin: 0;
+          font-size: 36px;
+          color: #333;
+        }
+        
+        .subtitle {
+          margin: 8px 0 0 0;
+          color: #666;
+          font-size: 18px;
+        }
+        
+        .mock-banner {
+          margin-top: 16px;
+          padding: 12px;
+          background: #fff3cd;
+          border: 2px solid #ffc107;
+          border-radius: 6px;
+          color: #856404;
+          font-weight: 600;
+          display: inline-block;
+        }
+        
+        .layout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+        
+        @media (max-width: 968px) {
+          .layout {
+            grid-template-columns: 1fr;
+          }
+        }
+        
+        .left-column,
+        .right-column {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        
+        .actions {
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+        }
+        
+        .btn {
+          padding: 12px 24px;
+          border: none;
+          border-radius: 6px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .btn-secondary {
+          background: #6c757d;
+          color: white;
+        }
+        
+        .btn-secondary:hover {
+          background: #5a6268;
+        }
+        
+        .btn-success {
+          background: #4CAF50;
+          color: white;
+          font-size: 18px;
+          padding: 16px 32px;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+          background: #45a049;
+        }
+        
+        .btn:disabled {
+          background: #cccccc;
+          cursor: not-allowed;
+        }
+        
+        .success-message {
+          background: #d4edda;
+          border: 2px solid #28a745;
+          color: #155724;
+          padding: 16px;
+          border-radius: 8px;
+          text-align: center;
+          font-weight: 600;
+          font-size: 18px;
+        }
+      `}</style>
+
+      <style jsx global>{`
+        * {
+          box-sizing: border-box;
+        }
+        
+        html,
+        body {
+          padding: 0;
+          margin: 0;
+          font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
+            Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
+            sans-serif;
+        }
+      `}</style>
+    </div>
+  );
+}
+
