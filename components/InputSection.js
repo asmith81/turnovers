@@ -1,36 +1,66 @@
 import { useState } from 'react';
+import VoiceRecorder from './VoiceRecorder';
+import LanguageSelector from './LanguageSelector';
 
-export default function InputSection({ onSubmit, isProcessing, disabled }) {
+export default function InputSection({ onSubmit, isProcessing, disabled, language, onLanguageChange }) {
   const [input, setInput] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isProcessing) {
-      onSubmit(input);
+      onSubmit(input, language);
       setInput('');
     }
   };
 
+  const handleVoiceTranscript = (transcript) => {
+    // Append to existing input or send immediately
+    if (transcript.trim()) {
+      // Auto-submit voice input with language tag
+      onSubmit(transcript, language);
+    }
+  };
+
+  const placeholders = {
+    en: "Describe the work needed... (e.g., '3 walls need paint in the living room')",
+    es: "Describe el trabajo necesario... (ej., '3 paredes necesitan pintura en la sala')"
+  };
+
   return (
     <div className="input-section">
+      <LanguageSelector 
+        language={language}
+        onChange={onLanguageChange}
+        disabled={disabled || isProcessing || isRecording}
+      />
+      
       <form onSubmit={handleSubmit}>
         <div className="input-group">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe the work needed... (e.g., '3 walls need paint in the living room')"
+            placeholder={placeholders[language] || placeholders.en}
             rows={4}
-            disabled={disabled || isProcessing}
+            disabled={disabled || isProcessing || isRecording}
             className="input-textarea"
           />
         </div>
-        <button 
-          type="submit" 
-          disabled={disabled || isProcessing || !input.trim()}
-          className="btn btn-primary"
-        >
-          {isProcessing ? 'Processing...' : 'Send'}
-        </button>
+        <div className="button-group">
+          <VoiceRecorder 
+            onTranscript={handleVoiceTranscript}
+            onRecordingChange={setIsRecording}
+            disabled={disabled || isProcessing}
+            language={language}
+          />
+          <button 
+            type="submit" 
+            disabled={disabled || isProcessing || !input.trim() || isRecording}
+            className="btn btn-primary"
+          >
+            {isProcessing ? 'Processing...' : language === 'es' ? 'Enviar' : 'Send'}
+          </button>
+        </div>
       </form>
       
       <style jsx>{`
@@ -39,6 +69,9 @@ export default function InputSection({ onSubmit, isProcessing, disabled }) {
           padding: 20px;
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
         }
         
         .input-group {
@@ -87,6 +120,12 @@ export default function InputSection({ onSubmit, isProcessing, disabled }) {
         .btn:disabled {
           background: #cccccc;
           cursor: not-allowed;
+        }
+        
+        .button-group {
+          display: flex;
+          gap: 12px;
+          align-items: center;
         }
       `}</style>
     </div>

@@ -1,0 +1,130 @@
+WO#,28867,,Unit #,301,,,,,
+,,,,,,,,,
+Address,1448 Park road Nw,,Unit SQ FT,511,,,Unit Layout,2 bedrooms Unit,
+,,,,,,,,,
+Overview,,,,Spanish,,,,,
+"Clean Walls Limpiar el resto de las paredes, de el cuarto 1. 
+Prep & Paint Walls 2 Coats Cuarto 2 pintar C,D, de la sala se pinta C,D
+Remove & Install  limapiar el base ",,,,#VALUE!,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+Unit Layout,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+Category,Item,Description,Unit,,Multiplier,Price Per Unit,Total,notes,
+Painting,Clean Walls,Clean,SF,300,1,$0.15,$45.00,"Limpiar el resto de las paredes, de el cuarto 1. ","Clean Walls Limpiar el resto de las paredes, de el cuarto 1. "
+,Clean Ceiling,Clean,SF,,1,$0.20,$0.00,Limpiar el celling de la cocina ,
+,"Patch small hole (2"")",Install,EA,,1,$4.00,$0.00,reparaciones general ,
+,Patch Hole,Install,SF,,1,$15.50,$0.00,reparar  3 hole de que ubicado en pared D que esta ubicaado en el toilet .,
+,Prep & Paint Walls 2 Coats,Paint,SF,244,1,$0.68,$165.92,"Cuarto 2 pintar C,D, de la sala se pinta C,D","Prep & Paint Walls 2 Coats Cuarto 2 pintar C,D, de la sala se pinta C,D"
+,Extra Coat of Paint,Paint,SF,,1,$0.35,$0.00,,
+,Prep & Paint Ceiling 2 Coats,Paint,SF,,1,$0.73,$0.00,Reparar el ceiling al centro de la sala. touch up,
+Floor & Molding,Flooring,Demolition,SF,,1,$1.20,$0.00,Remover el piso para instalar el nuevo ,
+,Vinyl Plank Flooring,Install,SF,,1,$3.85,$0.00,,
+,"Base Molding 4""",Remove & Install,LF,,1,$3.86,$0.00,poner nuevo bease de PVC de tres pulgadas ,
+,,Clean,LF,,1,$0.27,$0.00,Limpiar todo el Base. ,
+,,Paint,LF,,1,$0.66,$0.00,pintar el base.,
+,"Vinyl Base 4""",Remove & Install,LF,,1,$3.50,$0.00,Pegar el base de la pared D que esta despegado.,
+,,Clean,LF,,1,$0.50,$0.00,Limpiar todo base ,
+,Shoe Molding,Remove & Install,LF,,1,$2.75,$0.00,,
+,,Clean,LF, ,1,$0.18,#VALUE!,limapiar el base ,Remove & Install  limapiar el base 
+,,Paint,LF,,1,$0.70,$0.00,,
+Doors & Windows,Paint Window Frame,Paint,LF,,1,$1.00,$0.00,Pintar el frame de las ventanas ,
+,Clean Window Frame,Clean,LF,,1,$0.50,$0.00,"window Frames, ",
+,Repair Blind Chain,Repair,EA,,1,$20.00,$0.00,Reparar la cadena de la cortina.,
+,"Paint 36"" Door",Paint,EA,,1,$40.00,$0.00,pinatar la puerta de el baño,
+,Paint up to 6' Closet Door,Paint,EA,,1,$90.00,$0.00,,
+,Clean Doors,Clean,EA,,1,$10.00,$0.00,limpiar la puerta principal,
+,Paint Frame Only,Paint,EA,,1,$25.00,$0.00,Pintar el frame de la puerta principal,
+,Remove and Install Door w/frame,Remove & Install,EA,,1,$120.00 + Materials,$0.00,Reemplazar puerta rota de el cuarto 1 y cortarle a la de el cuarto 2 ete es el precio total.,
+,Remove and Install Door Hardware,Remove & Install,EA,,1,$45.00 + Materials,$0.00,Reemplazar las visagras de la puerta de el Baño,
+Other,Countertop Butcherblock,Remove & Install,SF,,1,$30.00,$0.00,Reemplazar el counter top ,
+,,Refinish,SF,,1,$6.00,$0.00,Lijar y ponerle varnis al counter top,
+,Shower Curtain Hooks,Install,SET,,1,$25.00,$0.00,poner los hooks de las cortina de el baño.,
+,Shower Curtain,Install,EA,,1,$20.00,$0.00, la cortina de el baño,
+,Blinds,"Remove & Install, HD Contractor Grade",SF,,1,$5.47,$0.00,"Reemplzar Todas,  ",
+,,Clean,SF,,1,$0.60,$0.00,Limpiar las cortinas.,
+Outlets No Wiring,120V Outlet,Remove & Install,EA,,1,$60.00,$0.00,Reemplazar un outlet que esta quemado ,
+,Plate Only,Remove & Install,EA,,1,$12.00,$0.00,cover de outlet roto,
+,GFCI Outlet,Remove & Install,EA,,1,$90.00,$0.00,,
+,Plate Only,Remove & Install,EA,,1,$12.00,$0.00,"dos tapas quebradas en la pared B,C ",
+Light Switch No Wiring,Single,Remove & Install,EA,,1,$41.00,$0.00,Reemplazar switch de la luz de la entrada.,
+,Plate Only,Remove & Install,EA,,1,$11.00,$0.00,Reemplazar el cover de el swich de le baño que esta roto,
+,Double,Remove & Install,EA,,1,$57.00,$0.00,Reemplazar cover de switch de la entrada es doble,
+,Plate Only,Remove & Install,EA,,1,$13.50,$0.00,Reemplazar el cover de el swich de le baño,
+,Triple,Remove & Install,EA,,1,$85.00,$0.00,,
+,Plate Only,Remove & Install,EA,,1,$18.50,$0.00,,
+,Dimmer,Remove & Install,EA,,1,$75.00,$0.00,,
+,Plate Only,Remove & Install,EA,,1,$13.00,$0.00,,
+Electrical Installation,Light Fixture,Remove & Install,EA,,1,$60.00 + Materials,$0.00,The light over the sink dosen't work.,
+,Garbage Disposal,Remove & Install,EA,,1,$90.00 + Materials,$0.00,,
+,Range Hood Vented,Remove & Install,EA,,1,$140.00 + Materials,$0.00,Instalar nuevo hoos de la cocina.,
+,Range Hood Ventless,Remove & Install,EA,,1,$130.00 + Materials,$0.00,,
+,Bathroom Exhaust,Remove & Install,EA,,1,$75.00 + Materiales,$0.00,reemplazar el exhaus de el baño ace ruido feo,
+,Smoke Detector Wired,Remove & Install,EA,,1,$45.00 + Materials,$0.00,Reemplazar el smoke detector ,
+,Smoke Detector Batteries,Remove & Install,EA,,1,$35.00 + Materials,$0.00,ponerle baterias a un smoke detector que esta pinatando.,
+Plumbing Installation,Floor Mounted toilet w/ tank,Remove & Install,EA,,1,$160.00 + Materials,$0.00,Reemplazar el toilet esta roto.,
+,Wall Mounted Toilet w/Flush Valve,Remove & Install,EA,,1,$180.00 + Materials,$0.00,,
+,Urinal,Remove & Install,EA,,1,$170.00 + Materials,$0.00,,
+,Seat,Remove & Install,EA,,1,$30.00 + Materials,$0.00,Reemplazar el  toilet seat,
+,Faucet,Remove & Install,EA,,1,$65.00 + Materials,$0.00,ponerle nuvo faucet al baño,
+,Drain Basket,Remove & Install,EA,,1,$50.00 + Materials,$0.00,,
+,Shower Head,Remove & Install,EA,,1,$35.00 + Materials,$0.00,Reemplazar la shower head poner clomado,
+,Shower Rod,Remove & Install,EA,,1,$40.00 + Materials,$0.00,,
+,Shower Faucet Set,Remove & Install,EA,,1,$95.00 + Materials,$0.00,,
+,Soap Dispenser,Remove & Install,EA,,1,$35.00 + Materials,$0.00,,
+,Towel Bar,Remove & Install,EA,,1,$30.00 + Materials,$0.00,Toallero de el bño esta roto.,
+Plumbing Repairs,Install or Replace New Sloan or Similar Brand Flush Valve,Repairs,EA,,1,$155.00 + Materials,$0.00,,
+,"General Plumbing Repairs (faucet rebuild, replace fill valve, toilet tank rebuild, handle repairs, replace P traps)",Repairs,EA,,1,$45.00 + Materials,$0.00,,
+,Tub Stopper,Remove & Install,EA,,1,$25.00,$0.00,Reemplazar tub stopper de la tina,
+,Caulking,Remove & Install,LF,,1,$7.00,$0.00,ponerle caulking a la ventan aen la parted de abajo.,
+Clean Up,General Clean,Clean,SF,,1,$0.10,$0.00,limpiar la unidad,
+,Refrigerator,Clean,EA,,1,$45.00,$0.00,,
+,Oven,Clean,EA,,1,$45.00,$0.00,limpiar bien la estufa y de adentro ,
+,Wall Coverings,Clean,SF,,1,$1.00,$0.00,Limpiar la tela y las manchas de lapizero,
+,Replace Batteries,Other,EA,,1,$15.00,$0.00,"limpiar cover de otlets y switches sucieda y manchas de pintura.
+limpiar  las salida de aire de a
+",
+,Outlet & Switch Plates,Clean,EA,,1,$2.00,$0.00,Limpiar los covers.,
+Other,Other repairs  ,Repair,EA,,1,$0.00,$0.00,"-Limpiar bien todos los  gavinetes chequear todad las orillas que no se este despegando la pintura. 
+-Reemplazar las maderas de los gavinetes abajo de el sink de la cocina y de el baño
+ -pintar el sink de el baño 
+-Pintar la tina.
+-Cover de la cortina de la cocina esta safada 
+-Reemplazar el filtro de el hood.
+hablar con Marcelo de el precio de estas cosas ",
+,Other repairs  ,Repair,EA,,1,$0.00,$0.00,"-Reenplazar vidrio de la ventana rota.
+-Reparar el piso 
+-Ponerle madera a los gavinetes que esten dañados y una bisagra rota.
+Handle de la refrigeradora esta rota.",
+,Faucets ,Replace,EA,,1,$0.00,$0.00, -Reenplazar la estufa cuesta $725.09,
+,Other repairs  ,Repair,EA,,1,$20.00,$0.00,"-La puerta de el closet no habre
+-bobillos para las luz de el baño
+-Socar el toilet seat 
+-Range hood necesita nuevo filtro
+- la puerta de el closet esta caida ay que reintalarla.
+Limpiar los ventiladores.
+-El gancho de la cortina de la sala esta roto
+Ajustar la chapa de la puerta principal.
+Dos gavetas rotas de la cocina.
+limpiar los gavinetes de la cocina.
+Ventana esta rota de las sala.",
+,Other repairs  ,Repair,EA,1,1,$0.00,$0.00,Reparar el drywall de la pared por partes se unde.,
+,,,,,,,,,
+Total,,,,,,,#VALUE!,,

@@ -1,4 +1,36 @@
-export default function ConversationView({ history }) {
+import { useEffect, useRef } from 'react';
+import { speak, stopSpeaking } from '../lib/tts';
+
+export default function ConversationView({ history, enableTTS = true, ttsLanguage = 'en' }) {
+  const lastMessageRef = useRef(null);
+  const processedMessagesRef = useRef(new Set());
+
+  useEffect(() => {
+    // Auto-scroll to latest message
+    if (lastMessageRef.current) {
+      lastMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+
+    // Speak assistant messages
+    if (enableTTS && history.length > 0) {
+      const lastMessage = history[history.length - 1];
+      const messageKey = `${history.length - 1}-${lastMessage.content}`;
+      
+      if (lastMessage.role === 'assistant' && !processedMessagesRef.current.has(messageKey)) {
+        processedMessagesRef.current.add(messageKey);
+        const langCode = ttsLanguage === 'es' ? 'es-ES' : 'en-US';
+        speak(lastMessage.content, { rate: 1.1, lang: langCode });
+      }
+    }
+  }, [history, enableTTS, ttsLanguage]);
+
+  useEffect(() => {
+    // Cleanup: stop speaking when component unmounts
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
+
   if (history.length === 0) {
     return (
       <div className="conversation-empty">
@@ -20,9 +52,16 @@ export default function ConversationView({ history }) {
       <h3>Conversation</h3>
       <div className="messages">
         {history.map((msg, idx) => (
-          <div key={idx} className={`message ${msg.role}`}>
+          <div 
+            key={idx} 
+            className={`message ${msg.role}`}
+            ref={idx === history.length - 1 ? lastMessageRef : null}
+          >
             <div className="message-label">
               {msg.role === 'user' ? 'You' : 'Assistant'}
+              {msg.role === 'assistant' && enableTTS && (
+                <span className="speaker-icon" title="Speaking enabled">🔊</span>
+              )}
             </div>
             <div className="message-content">
               {msg.content}
@@ -73,6 +112,13 @@ export default function ConversationView({ history }) {
           font-weight: 600;
           color: #666;
           margin-bottom: 4px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        
+        .speaker-icon {
+          font-size: 14px;
         }
         
         .message-content {

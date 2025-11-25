@@ -75,35 +75,41 @@ Anthropic API + Google Sheets API
     { role: "user", content: "Living room" }
   ],
   
-  // Structured data being built
+  // Structured data matching Google Sheet template
   structuredData: {
-    projectInfo: {
-      address: string,
-      date: string,
-      assessor: string
-    },
+    workOrderNumber: string,           // B1:C2
+    unitNumber: string,                // E1:I2
+    address: string,                   // B3:C4
+    unitSquareFeet: string,            // E3:G4
+    unitLayout: string,                // I3:I4 (e.g., "2 bedrooms Unit")
     workItems: [
       {
         id: string,
-        category: "paint" | "floor" | "repair" | "clean" | "other",
-        room: string,
-        description: string,
-        quantity: number,
-        unit: "sqft" | "walls" | "each",
-        unitPrice: number,
-        total: number
+        category: string,              // "Painting", "Floor & Molding", etc. (from catalog)
+        item: string,                  // "Clean Walls", "Prep & Paint Walls 2 Coats", etc.
+        description: string,           // "Clean", "Paint", "Install", etc.
+        unit: "SF" | "LF" | "EA" | "SET",
+        multiplier: number,            // Quantity
+        pricePerUnit: number,          // From pricing catalog
+        total: number,                 // multiplier × pricePerUnit
+        notes: string,                 // Spanish or English notes
+        materialsCost: boolean         // true if "+ Materials"
       }
-    ],
-    notes: string
+    ]
   },
   
   // Generated outputs
-  englishScope: string,
-  spanishScope: string,
+  englishScope: string,                // A6:D10
+  spanishScope: string,                // E6:I10
+  
+  // Media
+  sketch: string (base64),             // A12:I27 (uploaded to Drive)
+  photos: array,                       // Uploaded to Drive
   
   // UI state
   isProcessing: boolean,
-  currentStep: "input" | "review" | "approve" | "submitted"
+  currentStep: "input" | "review" | "approve" | "submitted",
+  activeTab: "data" | "sketch" | "photos"
 }
 ```
 
@@ -240,10 +246,129 @@ GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\
 - Subcontractor understanding: Measured by reduced scope creep
 - System reliability: > 95% successful submissions
 
+## Photo & Sketch Upload Strategy
+
+**Based on lessons from previous photo upload project:**
+
+### Key Principles:
+1. ❌ **Never embed base64 images in JSON** - Causes mobile failures
+2. ✅ **Upload photos separately** - Each photo uploads independently to Drive
+3. ✅ **Compress images client-side** - 800px max, 60% quality → 50-100KB per photo
+4. ✅ **Add 500ms delays** between uploads - Prevents Apps Script concurrency issues
+5. ✅ **30-second timeouts** per photo - Prevents hanging
+6. ✅ **Show progress feedback** - "Uploading photo X of Y..."
+7. ✅ **Use text/plain Content-Type** - Avoids CORS preflight complexity
+
+### Upload Flow:
+```
+1. User adds photos → Compress locally → Show previews
+2. User draws sketch → Store as canvas data URL → Show preview
+3. Click Submit →
+   a. Upload each photo to Drive (with 500ms delays)
+      - "Uploading photo 1 of 5..."
+      - "Uploading photo 2 of 5..."
+   b. Get photo Drive URLs back
+   c. Upload sketch to Drive (if exists)
+      - "Uploading floor plan..."
+   d. Get sketch Drive URL back
+   e. Generate EN/ES scopes via API
+   f. Submit to Sheets with URLs only (not base64!)
+      Payload: {
+        structuredData: {...},
+        photoUrls: ['https://drive...', ...],  // ~50 bytes each
+        sketchUrl: 'https://drive...',         // ~50 bytes
+        englishScope: "...",
+        spanishScope: "..."
+      }
+      Total: <5KB even with 10 photos + sketch!
+4. Success!
+```
+
+### Implementation Files:
+- `lib/imageCompression.js` - Client-side image compression
+- `lib/googleDrive.js` - Separate photo upload utilities
+- `components/PhotoGallery.js` - Compression on photo selection
+
+### Apps Script Requirements:
+```javascript
+// Endpoint 1: Upload single photo
+POST {action: 'uploadPhoto', photo: {name, data, caption}}
+→ {success: true, driveUrl: '...', fileId: '...'}
+
+// Endpoint 2: Upload sketch (floor plan)
+POST {action: 'uploadSketch', sketch: {name, data}}
+→ {success: true, driveUrl: '...', fileId: '...'}
+
+// Endpoint 3: Submit form
+POST {action: 'submitForm', structuredData, photoUrls: [...], sketchUrl, englishScope, spanishScope}
+→ {success: true, rowNumber: 42}
+```
+
+### Apps Script Implementation Example:
+```javascript
+function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  
+  switch(data.action) {
+    case 'uploadPhoto':
+      return handlePhotoUpload(data.photo);
+    case 'uploadSketch':
+      return handleSketchUpload(data.sketch);
+    case 'submitForm':
+      return handleFormSubmission(data);
+    default:
+      return buildErrorResponse('Unknown action');
+  }
+}
+
+function handleSketchUpload(sketch) {
+  try {
+    Logger.log('Uploading floor plan sketch...');
+    
+    // Get or create "Turnovers Sketches" folder
+    const folder = getOrCreateFolder('Turnovers Sketches');
+    
+    // Convert base64 to blob
+    const base64Data = sketch.data.split(',')[1]; // Remove data:image/png;base64, prefix
+    const blob = Utilities.newBlob(
+      Utilities.base64Decode(base64Data),
+      'image/png',
+      sketch.name
+    );
+    
+    // Upload to Drive
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    Logger.log('Sketch uploaded: ' + file.getName());
+    
+    return buildSuccessResponse({
+      driveUrl: file.getUrl(),
+      fileId: file.getId(),
+      fileName: file.getName()
+    });
+    
+  } catch (error) {
+    Logger.log('ERROR uploading sketch: ' + error.toString());
+    return buildErrorResponse('Sketch upload failed: ' + error.message);
+  }
+}
+```
+
+### OAuth Scopes Required:
+```json
+{
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+  ]
+}
+```
+
 ## Known Limitations / Future Work
 
 - No offline support (Phase 2)
-- No photo/floor plan upload (Phase 2)
+- Photo upload to Drive (implemented client-side, needs Apps Script endpoint)
 - No historical search (Phase 3)
 - No analytics dashboard (Phase 3)
 - No multi-client support (not needed)

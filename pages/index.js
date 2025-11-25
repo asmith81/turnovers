@@ -1,17 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import InputSection from '../components/InputSection';
 import ConversationView from '../components/ConversationView';
 import DataTable from '../components/DataTable';
 import ScopePreview from '../components/ScopePreview';
+import TabNavigation from '../components/TabNavigation';
+import SketchCanvas from '../components/SketchCanvas';
+import PhotoGallery from '../components/PhotoGallery';
 import { mockProcessAPI, mockSubmitAPI, mockStructuredData } from '../lib/mockData';
+import { stopSpeaking } from '../lib/tts';
 
 export default function Home() {
   const [conversationHistory, setConversationHistory] = useState([]);
   const [structuredData, setStructuredData] = useState({
-    projectInfo: { address: '', date: '', assessor: '' },
-    workItems: [],
-    notes: ''
+    workOrderNumber: '',
+    unitNumber: '',
+    address: '',
+    unitSquareFeet: '',
+    unitLayout: '',
+    workItems: []
   });
   const [englishScope, setEnglishScope] = useState('');
   const [spanishScope, setSpanishScope] = useState('');
@@ -19,17 +26,30 @@ export default function Home() {
   const [isComplete, setIsComplete] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState('input'); // input, review, approved, submitted
+  const [enableTTS, setEnableTTS] = useState(true);
+  const [inputLanguage, setInputLanguage] = useState('en'); // 'en' or 'es'
+  const [activeTab, setActiveTab] = useState('data'); // data, sketch, photos
+  const [sketch, setSketch] = useState(null);
+  const [photos, setPhotos] = useState([]);
 
   // Mock mode flag - set to false when APIs are ready
   const MOCK_MODE = true;
 
-  const handleUserInput = async (userInput) => {
+  // Cleanup TTS on unmount
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
+
+  const handleUserInput = async (userInput, language = 'en') => {
     setIsProcessing(true);
 
-    // Add user message to history
+    // Add user message to history with language indicator
+    const languageTag = language === 'es' ? ' [ES]' : '';
     const newHistory = [
       ...conversationHistory,
-      { role: 'user', content: userInput }
+      { role: 'user', content: userInput, language }
     ];
     setConversationHistory(newHistory);
 
@@ -40,12 +60,13 @@ export default function Home() {
         // Use mock API
         result = await mockProcessAPI(userInput, structuredData, newHistory);
       } else {
-        // Real API call
+        // Real API call - include input language for better LLM processing
         const response = await fetch('/api/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userInput,
+            inputLanguage: language,
             currentData: structuredData,
             conversationHistory: newHistory
           })
@@ -94,11 +115,57 @@ export default function Home() {
         // Use mock API
         result = await mockSubmitAPI(structuredData);
       } else {
-        // Real API call
-        const response = await fetch('/api/submit', {
+        // Real API call with proper upload flow
+        // Import these when ready to connect: 
+        // import { uploadPhotosWithProgress, uploadSketchToDrive, submitFormWithPhotoUrls } from '../lib/googleDrive';
+        
+        // TODO: When connecting to real API, implement this flow:
+        /*
+        const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL;
+        
+        // Step 1: Upload photos to Drive (if any)
+        let photoUrls = [];
+        if (photos.length > 0) {
+          photoUrls = await uploadPhotosWithProgress(photos, APPS_SCRIPT_URL, (progress) => {
+            console.log(`Uploading photo ${progress.current} of ${progress.total}: ${progress.photoName}`);
+            // TODO: Show progress in UI
+          });
+        }
+        
+        // Step 2: Upload sketch to Drive (if exists)
+        let sketchUrl = null;
+        if (sketch) {
+          sketchUrl = await uploadSketchToDrive(sketch, APPS_SCRIPT_URL);
+        }
+        
+        // Step 3: Generate scopes via API
+        const scopeResponse = await fetch('/api/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ structuredData })
+        });
+        const scopeResult = await scopeResponse.json();
+        
+        // Step 4: Submit everything to Sheets with URLs (not base64!)
+        result = await submitFormWithPhotoUrls({
+          structuredData,
+          englishScope: scopeResult.englishScope,
+          spanishScope: scopeResult.spanishScope,
+          photoUrls,  // Just URLs, ~50 bytes each
+          sketchUrl   // Just one URL, ~50 bytes
+          // Total payload: <5KB even with 10 photos + sketch!
+        }, APPS_SCRIPT_URL);
+        */
+        
+        // For now, use existing API
+        const response = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            structuredData,
+            photoCount: photos.length,
+            hasSketch: !!sketch
+          })
         });
         result = await response.json();
       }
@@ -121,15 +188,21 @@ export default function Home() {
   const handleReset = () => {
     setConversationHistory([]);
     setStructuredData({
-      projectInfo: { address: '', date: '', assessor: '' },
-      workItems: [],
-      notes: ''
+      workOrderNumber: '',
+      unitNumber: '',
+      address: '',
+      unitSquareFeet: '',
+      unitLayout: '',
+      workItems: []
     });
     setEnglishScope('');
     setSpanishScope('');
     setIsComplete(false);
     setIsSubmitted(false);
     setCurrentStep('input');
+    setSketch(null);
+    setPhotos([]);
+    setActiveTab('data');
   };
 
   const loadMockData = () => {
@@ -146,6 +219,28 @@ export default function Home() {
     setCurrentStep('review');
   };
 
+  // Define tabs
+  const tabs = [
+    { 
+      id: 'data', 
+      icon: '📊', 
+      label: 'Data Table',
+      badge: structuredData.workItems.length || null
+    },
+    { 
+      id: 'sketch', 
+      icon: '✏️', 
+      label: 'Floor Plan',
+      badge: sketch ? '✓' : null
+    },
+    { 
+      id: 'photos', 
+      icon: '📷', 
+      label: 'Photos',
+      badge: photos.length || null
+    }
+  ];
+
   return (
     <div className="container">
       <Head>
@@ -158,11 +253,20 @@ export default function Home() {
         <header>
           <h1>🔨 Turnovers</h1>
           <p className="subtitle">Job Site Assessment Tool</p>
-          {MOCK_MODE && (
-            <div className="mock-banner">
-              🧪 MOCK MODE - Using simulated data (APIs not connected)
-            </div>
-          )}
+          <div className="header-controls">
+            {MOCK_MODE && (
+              <div className="mock-banner">
+                🧪 MOCK MODE - Using simulated data (APIs not connected)
+              </div>
+            )}
+            <button 
+              onClick={() => setEnableTTS(!enableTTS)}
+              className="tts-toggle"
+              title={enableTTS ? 'Disable voice responses' : 'Enable voice responses'}
+            >
+              {enableTTS ? '🔊 Voice On' : '🔇 Voice Off'}
+            </button>
+          </div>
         </header>
 
         <div className="layout">
@@ -172,9 +276,15 @@ export default function Home() {
               onSubmit={handleUserInput}
               isProcessing={isProcessing}
               disabled={isComplete}
+              language={inputLanguage}
+              onLanguageChange={setInputLanguage}
             />
             
-            <ConversationView history={conversationHistory} />
+            <ConversationView 
+              history={conversationHistory}
+              enableTTS={enableTTS}
+              ttsLanguage={inputLanguage}
+            />
             
             {/* Action Buttons */}
             <div className="actions">
@@ -202,22 +312,48 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Column - Data & Scopes */}
+          {/* Right Column - Tabbed Content */}
           <div className="right-column">
-            <DataTable data={structuredData} />
+            <TabNavigation 
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              tabs={tabs}
+            />
             
-            {(englishScope || spanishScope) && (
-              <ScopePreview 
-                englishScope={englishScope}
-                spanishScope={spanishScope}
-              />
-            )}
-            
-            {isSubmitted && (
-              <div className="success-message">
-                ✅ Successfully submitted to Google Sheets!
-              </div>
-            )}
+            <div className="tab-content">
+              {activeTab === 'data' && (
+                <>
+                  <DataTable data={structuredData} />
+                  
+                  {(englishScope || spanishScope) && (
+                    <ScopePreview 
+                      englishScope={englishScope}
+                      spanishScope={spanishScope}
+                    />
+                  )}
+                  
+                  {isSubmitted && (
+                    <div className="success-message">
+                      ✅ Successfully submitted to Google Sheets!
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {activeTab === 'sketch' && (
+                <SketchCanvas 
+                  sketch={sketch}
+                  onSketchChange={setSketch}
+                />
+              )}
+              
+              {activeTab === 'photos' && (
+                <PhotoGallery 
+                  photos={photos}
+                  onPhotosChange={setPhotos}
+                />
+              )}
+            </div>
           </div>
         </div>
       </main>
@@ -251,15 +387,38 @@ export default function Home() {
           font-size: 18px;
         }
         
-        .mock-banner {
+        .header-controls {
           margin-top: 16px;
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        
+        .mock-banner {
           padding: 12px;
           background: #fff3cd;
           border: 2px solid #ffc107;
           border-radius: 6px;
           color: #856404;
           font-weight: 600;
-          display: inline-block;
+        }
+        
+        .tts-toggle {
+          padding: 8px 16px;
+          background: white;
+          border: 2px solid #2196F3;
+          border-radius: 6px;
+          color: #2196F3;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .tts-toggle:hover {
+          background: #e3f2fd;
         }
         
         .layout {
@@ -276,6 +435,12 @@ export default function Home() {
         
         .left-column,
         .right-column {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        
+        .tab-content {
           display: flex;
           flex-direction: column;
           gap: 20px;

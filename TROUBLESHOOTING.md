@@ -111,6 +111,32 @@ Document issues encountered during development and deployment, along with soluti
   
   See `.env.local.example` for format
 
+- [ ] **APPS SCRIPT SETUP** - When connecting to real API:
+  - Create Apps Script deployment (see APPS_SCRIPT_GUIDE.md)
+  - Add OAuth scopes in appsscript.json:
+    ```json
+    {
+      "oauthScopes": [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+      ]
+    }
+    ```
+  - Implement uploadPhoto endpoint
+  - Implement uploadSketch endpoint (NEW - for floor plan)
+  - Implement submitForm endpoint
+  - Create "Turnovers Photos" folder in Drive
+  - Create "Turnovers Sketches" folder in Drive
+  - Test with 1, 3, 5 photos
+  - Test with sketch upload
+
+- [ ] **PHOTO UPLOAD TESTING**:
+  - Test on actual mobile device (not just desktop)
+  - Test with multiple photos (1, 3, 5, 10)
+  - Test with poor network conditions
+  - Verify 500ms delays prevent concurrency issues
+  - Verify 30s timeout prevents hangs
+
 - 
 
 ---
