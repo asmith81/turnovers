@@ -32,6 +32,7 @@ export default function Home() {
   const [isComplete, setIsComplete] = useState(false);
   const [scopesGenerated, setScopesGenerated] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedSheetUrl, setSubmittedSheetUrl] = useState('');
   const [currentStep, setCurrentStep] = useState('input'); // input, review, scopes, submitted
   const [enableTTS, setEnableTTS] = useState(true);
   const [inputLanguage, setInputLanguage] = useState('en'); // 'en' or 'es'
@@ -161,14 +162,19 @@ export default function Home() {
           structuredData,
           englishScope,
           spanishScope,
-          photoCount: photos.length,
-          hasSketch: !!sketch
+          sketch: sketch || null,
+          photos: photos.map(p => ({
+            url: p.url,
+            name: p.name,
+            caption: p.caption || ''
+          }))
         })
       });
       
       const result = await response.json();
 
       if (result.success) {
+        setSubmittedSheetUrl(result.sheetUrl || '');
         setIsSubmitted(true);
         setCurrentStep('submitted');
       } else {
@@ -198,6 +204,7 @@ export default function Home() {
     setIsComplete(false);
     setScopesGenerated(false);
     setIsSubmitted(false);
+    setSubmittedSheetUrl('');
     setCurrentStep('input');
     setSketch(null);
     setPhotos([]);
@@ -375,7 +382,21 @@ export default function Home() {
                   
                   {isSubmitted && (
                     <div className="success-message">
-                      ✅ Successfully submitted to Google Sheets!
+                      <div className="success-icon">✅</div>
+                      <div className="success-text">
+                        <strong>Successfully submitted!</strong>
+                        <p>Sheet "{structuredData.workOrderNumber}" has been created.</p>
+                        {submittedSheetUrl && (
+                          <a 
+                            href={submittedSheetUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="sheet-link"
+                          >
+                            📄 Open in Google Sheets →
+                          </a>
+                        )}
+                      </div>
                     </div>
                   )}
                 </>
@@ -568,11 +589,48 @@ export default function Home() {
           background: #d4edda;
           border: 2px solid #28a745;
           color: #155724;
-          padding: 16px;
+          padding: 20px;
           border-radius: 8px;
-          text-align: center;
-          font-weight: 600;
+          display: flex;
+          align-items: flex-start;
+          gap: 16px;
+        }
+        
+        .success-icon {
+          font-size: 32px;
+          line-height: 1;
+        }
+        
+        .success-text {
+          flex: 1;
+        }
+        
+        .success-text strong {
           font-size: 18px;
+          display: block;
+          margin-bottom: 4px;
+        }
+        
+        .success-text p {
+          margin: 0 0 12px 0;
+          font-size: 14px;
+          opacity: 0.8;
+        }
+        
+        .sheet-link {
+          display: inline-block;
+          background: #28a745;
+          color: white;
+          padding: 10px 16px;
+          border-radius: 6px;
+          text-decoration: none;
+          font-weight: 600;
+          font-size: 14px;
+          transition: background 0.2s;
+        }
+        
+        .sheet-link:hover {
+          background: #218838;
         }
       `}</style>
 
