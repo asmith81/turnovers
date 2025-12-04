@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import Head from 'next/head';
 import InputSection from '../components/InputSection';
 import ConversationView from '../components/ConversationView';
@@ -7,10 +8,15 @@ import ScopePreview from '../components/ScopePreview';
 import TabNavigation from '../components/TabNavigation';
 import SketchCanvas from '../components/SketchCanvas';
 import PhotoGallery from '../components/PhotoGallery';
+import LoginButton from '../components/LoginButton';
 import { mockProcessAPI, mockSubmitAPI, mockStructuredData } from '../lib/mockData';
 import { stopSpeaking } from '../lib/tts';
 
 export default function Home() {
+  const { data: session, status } = useSession();
+  const loading = status === 'loading';
+  const authenticated = !!session;
+  
   const [conversationHistory, setConversationHistory] = useState([]);
   const [structuredData, setStructuredData] = useState({
     workOrderNumber: '',
@@ -24,8 +30,9 @@ export default function Home() {
   const [spanishScope, setSpanishScope] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [scopesGenerated, setScopesGenerated] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [currentStep, setCurrentStep] = useState('input'); // input, review, approved, submitted
+  const [currentStep, setCurrentStep] = useState('input'); // input, review, scopes, submitted
   const [enableTTS, setEnableTTS] = useState(true);
   const [inputLanguage, setInputLanguage] = useState('en'); // 'en' or 'es'
   const [activeTab, setActiveTab] = useState('data'); // data, sketch, photos
@@ -33,7 +40,7 @@ export default function Home() {
   const [photos, setPhotos] = useState([]);
 
   // Mock mode flag - set to false when APIs are ready
-  const MOCK_MODE = true;
+  const MOCK_MODE = false;
 
   // Cleanup TTS on unmount
   useEffect(() => {
@@ -106,80 +113,71 @@ export default function Home() {
 
   const handleGenerateScopes = async () => {
     setIsProcessing(true);
-    setCurrentStep('approved');
 
     try {
-      let result;
-      
       if (MOCK_MODE) {
-        // Use mock API
-        result = await mockSubmitAPI(structuredData);
+        // Use mock scopes
+        const result = await mockSubmitAPI(structuredData);
+        setEnglishScope(result.englishScope);
+        setSpanishScope(result.spanishScope);
       } else {
-        // Real API call with proper upload flow
-        // Import these when ready to connect: 
-        // import { uploadPhotosWithProgress, uploadSketchToDrive, submitFormWithPhotoUrls } from '../lib/googleDrive';
-        
-        // TODO: When connecting to real API, implement this flow:
-        /*
-        const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL;
-        
-        // Step 1: Upload photos to Drive (if any)
-        let photoUrls = [];
-        if (photos.length > 0) {
-          photoUrls = await uploadPhotosWithProgress(photos, APPS_SCRIPT_URL, (progress) => {
-            console.log(`Uploading photo ${progress.current} of ${progress.total}: ${progress.photoName}`);
-            // TODO: Show progress in UI
-          });
-        }
-        
-        // Step 2: Upload sketch to Drive (if exists)
-        let sketchUrl = null;
-        if (sketch) {
-          sketchUrl = await uploadSketchToDrive(sketch, APPS_SCRIPT_URL);
-        }
-        
-        // Step 3: Generate scopes via API
-        const scopeResponse = await fetch('/api/submit', {
+        // Generate scopes via API (without submitting)
+        const response = await fetch('/api/generate-scopes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ structuredData })
         });
-        const scopeResult = await scopeResponse.json();
         
-        // Step 4: Submit everything to Sheets with URLs (not base64!)
-        result = await submitFormWithPhotoUrls({
-          structuredData,
-          englishScope: scopeResult.englishScope,
-          spanishScope: scopeResult.spanishScope,
-          photoUrls,  // Just URLs, ~50 bytes each
-          sketchUrl   // Just one URL, ~50 bytes
-          // Total payload: <5KB even with 10 photos + sketch!
-        }, APPS_SCRIPT_URL);
-        */
+        if (!response.ok) {
+          throw new Error('Failed to generate scopes');
+        }
         
-        // For now, use existing API
-        const response = await fetch('/api/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            structuredData,
-            photoCount: photos.length,
-            hasSketch: !!sketch
-          })
-        });
-        result = await response.json();
-      }
-
-      if (result.success) {
+        const result = await response.json();
         setEnglishScope(result.englishScope);
         setSpanishScope(result.spanishScope);
+      }
+
+      setScopesGenerated(true);
+      setCurrentStep('scopes');
+
+    } catch (error) {
+      console.error('Error generating scopes:', error);
+      alert('Failed to generate scopes. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setIsProcessing(true);
+
+    try {
+      // TODO: Implement actual submission to Google Sheets
+      // For now, just mark as submitted
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          structuredData,
+          englishScope,
+          spanishScope,
+          photoCount: photos.length,
+          hasSketch: !!sketch
+        })
+      });
+      
+      const result = await response.json();
+
+      if (result.success) {
         setIsSubmitted(true);
         setCurrentStep('submitted');
+      } else {
+        throw new Error(result.error || 'Submission failed');
       }
 
     } catch (error) {
       console.error('Error submitting:', error);
-      alert('Failed to generate scopes. Please try again.');
+      alert('Failed to submit. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -198,6 +196,7 @@ export default function Home() {
     setEnglishScope('');
     setSpanishScope('');
     setIsComplete(false);
+    setScopesGenerated(false);
     setIsSubmitted(false);
     setCurrentStep('input');
     setSketch(null);
@@ -251,8 +250,14 @@ export default function Home() {
 
       <main>
         <header>
-          <h1>🔨 Turnovers</h1>
-          <p className="subtitle">Job Site Assessment Tool</p>
+          <div className="header-top">
+            <div>
+              <h1>🔨 Turnovers</h1>
+              <p className="subtitle">Job Site Assessment Tool</p>
+            </div>
+            <LoginButton />
+          </div>
+          
           <div className="header-controls">
             {MOCK_MODE && (
               <div className="mock-banner">
@@ -268,7 +273,21 @@ export default function Home() {
             </button>
           </div>
         </header>
-
+        
+        {loading && (
+          <div className="loading-screen">
+            <p>Loading...</p>
+          </div>
+        )}
+        
+        {!loading && !authenticated && (
+          <div className="auth-required">
+            <h2>Welcome to Turnovers</h2>
+            <p>Please sign in with your Google account to get started.</p>
+          </div>
+        )}
+        
+        {!loading && authenticated && (
         <div className="layout">
           {/* Left Column - Input & Conversation */}
           <div className="left-column">
@@ -294,14 +313,33 @@ export default function Home() {
                 </button>
               )}
               
-              {isComplete && !isSubmitted && (
+              {isComplete && !scopesGenerated && (
                 <button 
                   onClick={handleGenerateScopes} 
                   className="btn btn-success"
                   disabled={isProcessing}
                 >
-                  {isProcessing ? 'Generating...' : 'Generate Scopes & Submit'}
+                  {isProcessing ? 'Generating...' : '✨ Generate Scope of Work'}
                 </button>
+              )}
+              
+              {scopesGenerated && !isSubmitted && (
+                <div className="scope-actions">
+                  <button 
+                    onClick={handleGenerateScopes} 
+                    className="btn btn-secondary"
+                    disabled={isProcessing}
+                  >
+                    🔄 Regenerate Scopes
+                  </button>
+                  <button 
+                    onClick={handleSubmit} 
+                    className="btn btn-success"
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? 'Submitting...' : '✅ Submit to Sheets'}
+                  </button>
+                </div>
               )}
               
               {isSubmitted && (
@@ -329,6 +367,9 @@ export default function Home() {
                     <ScopePreview 
                       englishScope={englishScope}
                       spanishScope={spanishScope}
+                      onEnglishChange={setEnglishScope}
+                      onSpanishChange={setSpanishScope}
+                      editable={scopesGenerated && !isSubmitted}
                     />
                   )}
                   
@@ -356,6 +397,7 @@ export default function Home() {
             </div>
           </div>
         </div>
+        )}
       </main>
 
       <style jsx>{`
@@ -371,8 +413,16 @@ export default function Home() {
         }
         
         header {
-          text-align: center;
           margin-bottom: 32px;
+        }
+        
+        .header-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+          gap: 16px;
         }
         
         h1 {
@@ -385,6 +435,25 @@ export default function Home() {
           margin: 8px 0 0 0;
           color: #666;
           font-size: 18px;
+        }
+        
+        .loading-screen,
+        .auth-required {
+          text-align: center;
+          padding: 60px 20px;
+          background: white;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .auth-required h2 {
+          margin-top: 0;
+          color: #333;
+        }
+        
+        .auth-required p {
+          color: #666;
+          font-size: 16px;
         }
         
         .header-controls {
@@ -449,6 +518,14 @@ export default function Home() {
         .actions {
           display: flex;
           gap: 12px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+        
+        .scope-actions {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
           justify-content: center;
         }
         

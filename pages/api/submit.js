@@ -1,14 +1,15 @@
-import { generateScopes } from '../../lib/anthropic';
 import { writeToSheet } from '../../lib/sheets';
 
 /**
  * POST /api/submit
  * 
- * Generate scopes and submit to Google Sheets
+ * Submit turnover data and scopes to Google Sheets
  * 
  * Request body:
  * {
- *   structuredData: object
+ *   structuredData: object,
+ *   englishScope: string,
+ *   spanishScope: string
  * }
  * 
  * Response:
@@ -16,36 +17,29 @@ import { writeToSheet } from '../../lib/sheets';
  *   success: boolean,
  *   sheetUrl: string,
  *   rowNumber: number,
- *   englishScope: string,
- *   spanishScope: string,
  *   error?: string
  * }
  */
 export default async function handler(req, res) {
-  // Only allow POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { structuredData } = req.body;
+    const { structuredData, englishScope, spanishScope } = req.body;
 
     // Validate input
     if (!structuredData || typeof structuredData !== 'object') {
-      return res.status(400).json({ error: 'structuredData is required and must be an object' });
+      return res.status(400).json({ error: 'structuredData is required' });
     }
 
-    // Validate required fields
-    if (!structuredData.workItems || !Array.isArray(structuredData.workItems)) {
-      return res.status(400).json({ error: 'structuredData.workItems is required and must be an array' });
-    }
-
-    if (structuredData.workItems.length === 0) {
+    if (!structuredData.workItems || structuredData.workItems.length === 0) {
       return res.status(400).json({ error: 'At least one work item is required' });
     }
 
-    // Generate English and Spanish scopes
-    const { englishScope, spanishScope } = await generateScopes(structuredData);
+    if (!englishScope || !spanishScope) {
+      return res.status(400).json({ error: 'Both englishScope and spanishScope are required' });
+    }
 
     // Write to Google Sheet
     const sheetResult = await writeToSheet({
@@ -56,9 +50,8 @@ export default async function handler(req, res) {
 
     // Return success response
     return res.status(200).json({
-      ...sheetResult,
-      englishScope,
-      spanishScope
+      success: true,
+      ...sheetResult
     });
 
   } catch (error) {
@@ -70,4 +63,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
