@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { markdownToHtml } from '../lib/markdownUtils';
 
 export default function ScopePreview({ 
   englishScope, 
@@ -9,6 +10,7 @@ export default function ScopePreview({
 }) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [activeEdit, setActiveEdit] = useState(null); // 'en' or 'es'
+  const [isEditMode, setIsEditMode] = useState(false); // Toggle between view and edit
   const debounceRef = useRef(null);
 
   const translateScope = useCallback(async (text, targetLanguage) => {
@@ -69,27 +71,50 @@ export default function ScopePreview({
     return null;
   }
 
+  // Determine if we should show edit mode (must be editable AND in edit mode)
+  const showEditMode = editable && isEditMode;
+
   return (
     <div className="scope-preview">
       <div className="scope-header">
         <h3>📝 Scope of Work</h3>
-        {isTranslating && (
-          <span className="translating-badge">
-            🔄 Translating...
-          </span>
-        )}
+        <div className="header-actions">
+          {isTranslating && (
+            <span className="translating-badge">
+              🔄 Translating...
+            </span>
+          )}
+          {editable && (
+            <button 
+              className={`mode-toggle ${isEditMode ? 'edit-active' : ''}`}
+              onClick={() => setIsEditMode(!isEditMode)}
+            >
+              {isEditMode ? '👁️ View' : '✏️ Edit'}
+            </button>
+          )}
+        </div>
       </div>
       
       {editable && (
         <p className="edit-hint">
-          Edit either version below. Changes will auto-translate to the other language.
+          {isEditMode ? (
+            <>
+              ✏️ <strong>Edit Mode:</strong> Make changes below. Auto-translates after 1.5s pause. 
+              Click <strong>👁️ View</strong> to see formatted preview.
+            </>
+          ) : (
+            <>
+              👁️ <strong>Preview Mode:</strong> Viewing formatted scope. 
+              Click <strong>✏️ Edit</strong> to make changes.
+            </>
+          )}
         </p>
       )}
       
       <div className="scope-sections">
         <div className="scope-section">
           <h4>🇺🇸 English</h4>
-          {editable ? (
+          {showEditMode ? (
             <textarea
               value={englishScope}
               onChange={handleEnglishChange}
@@ -98,15 +123,16 @@ export default function ScopePreview({
               placeholder="English scope of work..."
             />
           ) : (
-            <div className="scope-content">
-              {englishScope}
-            </div>
+            <div 
+              className="scope-content"
+              dangerouslySetInnerHTML={{ __html: markdownToHtml(englishScope) }}
+            />
           )}
         </div>
         
         <div className="scope-section">
           <h4>🇪🇸 Spanish / Español</h4>
-          {editable ? (
+          {showEditMode ? (
             <textarea
               value={spanishScope}
               onChange={handleSpanishChange}
@@ -115,9 +141,10 @@ export default function ScopePreview({
               placeholder="Alcance del trabajo en español..."
             />
           ) : (
-            <div className="scope-content">
-              {spanishScope}
-            </div>
+            <div 
+              className="scope-content"
+              dangerouslySetInnerHTML={{ __html: markdownToHtml(spanishScope) }}
+            />
           )}
         </div>
       </div>
@@ -142,6 +169,37 @@ export default function ScopePreview({
           color: #333;
         }
         
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .mode-toggle {
+          padding: 8px 16px;
+          border: 2px solid #2196F3;
+          background: white;
+          color: #2196F3;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .mode-toggle:hover {
+          background: #e3f2fd;
+        }
+        
+        .mode-toggle.edit-active {
+          background: #2196F3;
+          color: white;
+        }
+        
+        .mode-toggle.edit-active:hover {
+          background: #1976d2;
+        }
+        
         .translating-badge {
           background: #fff3cd;
           color: #856404;
@@ -161,10 +219,15 @@ export default function ScopePreview({
           color: #666;
           font-size: 14px;
           margin: 0 0 16px 0;
-          padding: 10px;
+          padding: 12px 16px;
           background: #f0f7ff;
           border-radius: 6px;
-          border-left: 3px solid #2196F3;
+          border-left: 4px solid #2196F3;
+          line-height: 1.5;
+        }
+        
+        .edit-hint strong {
+          color: #1976d2;
         }
         
         .scope-sections {
@@ -193,8 +256,43 @@ export default function ScopePreview({
           padding: 16px;
           color: #333;
           line-height: 1.6;
-          white-space: pre-wrap;
           font-size: 14px;
+        }
+        
+        .scope-content h2,
+        .scope-content h3,
+        .scope-content h4 {
+          margin: 16px 0 8px 0;
+          color: #333;
+        }
+        
+        .scope-content h2:first-child,
+        .scope-content h3:first-child,
+        .scope-content h4:first-child {
+          margin-top: 0;
+        }
+        
+        .scope-content strong {
+          font-weight: 600;
+        }
+        
+        .scope-content em {
+          font-style: italic;
+        }
+        
+        .scope-content ul {
+          margin: 8px 0;
+          padding-left: 24px;
+        }
+        
+        .scope-content li {
+          margin: 4px 0;
+        }
+        
+        .scope-content br {
+          display: block;
+          content: "";
+          margin-top: 8px;
         }
         
         .scope-textarea {

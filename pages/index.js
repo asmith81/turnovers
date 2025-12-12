@@ -4,6 +4,7 @@ import Head from 'next/head';
 import InputSection from '../components/InputSection';
 import ConversationView from '../components/ConversationView';
 import DataTable from '../components/DataTable';
+import TableEditor from '../components/TableEditor';
 import ScopePreview from '../components/ScopePreview';
 import TabNavigation from '../components/TabNavigation';
 import SketchCanvas from '../components/SketchCanvas';
@@ -16,6 +17,7 @@ export default function Home() {
   const { data: session, status } = useSession();
   const loading = status === 'loading';
   const authenticated = !!session;
+  const sessionError = session?.error === 'RefreshAccessTokenError';
   
   const [conversationHistory, setConversationHistory] = useState([]);
   const [structuredData, setStructuredData] = useState({
@@ -39,9 +41,24 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('data'); // data, sketch, photos
   const [sketch, setSketch] = useState(null);
   const [photos, setPhotos] = useState([]);
+  const [isTableEditorOpen, setIsTableEditorOpen] = useState(false);
 
   // Mock mode flag - set to false when APIs are ready
   const MOCK_MODE = false;
+  
+  // Handle saving work items from the table editor
+  const handleSaveWorkItems = (updatedWorkItems) => {
+    setStructuredData(prev => ({
+      ...prev,
+      workItems: updatedWorkItems
+    }));
+    // If scopes were already generated, mark them as needing regeneration
+    if (scopesGenerated) {
+      setScopesGenerated(false);
+      setEnglishScope('');
+      setSpanishScope('');
+    }
+  };
 
   // Cleanup TTS on unmount
   useEffect(() => {
@@ -271,6 +288,11 @@ export default function Home() {
                 🧪 MOCK MODE - Using simulated data (APIs not connected)
               </div>
             )}
+            {sessionError && (
+              <div className="session-error-banner">
+                ⚠️ Your session has expired. Please sign out and sign back in to continue.
+              </div>
+            )}
             <button 
               onClick={() => setEnableTTS(!enableTTS)}
               className="tts-toggle"
@@ -314,13 +336,14 @@ export default function Home() {
             
             {/* Action Buttons */}
             <div className="actions">
-              {MOCK_MODE && !isComplete && (
+              {MOCK_MODE && structuredData.workItems.length === 0 && (
                 <button onClick={loadMockData} className="btn btn-secondary">
                   Load Mock Data
                 </button>
               )}
               
-              {isComplete && !scopesGenerated && (
+              {/* Show Generate Scope button when we have work items but no scope yet */}
+              {structuredData.workItems.length > 0 && !scopesGenerated && !isSubmitted && (
                 <button 
                   onClick={handleGenerateScopes} 
                   className="btn btn-success"
@@ -330,6 +353,7 @@ export default function Home() {
                 </button>
               )}
               
+              {/* Show Submit button when scopes are generated */}
               {scopesGenerated && !isSubmitted && (
                 <div className="scope-actions">
                   <button 
@@ -368,7 +392,18 @@ export default function Home() {
             <div className="tab-content">
               {activeTab === 'data' && (
                 <>
-                  <DataTable data={structuredData} />
+                  <DataTable 
+                    data={structuredData} 
+                    editable={!isSubmitted}
+                    onEdit={() => setIsTableEditorOpen(true)}
+                  />
+                  
+                  <TableEditor
+                    isOpen={isTableEditorOpen}
+                    onClose={() => setIsTableEditorOpen(false)}
+                    workItems={structuredData.workItems}
+                    onSave={handleSaveWorkItems}
+                  />
                   
                   {(englishScope || spanishScope) && (
                     <ScopePreview 
@@ -492,6 +527,15 @@ export default function Home() {
           border: 2px solid #ffc107;
           border-radius: 6px;
           color: #856404;
+          font-weight: 600;
+        }
+        
+        .session-error-banner {
+          padding: 12px 16px;
+          background: #ffebee;
+          border: 2px solid #f44336;
+          border-radius: 6px;
+          color: #c62828;
           font-weight: 600;
         }
         

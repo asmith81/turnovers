@@ -3,23 +3,15 @@ import { useState, useEffect, useRef } from 'react';
 export default function VoiceRecorder({ onTranscript, onRecordingChange, disabled, language = 'en' }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
-  const [transcript, setTranscript] = useState('');
+  const [currentTranscript, setCurrentTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
   const recognitionRef = useRef(null);
   const languageRef = useRef(language);
+  const accumulatedTranscriptRef = useRef('');
 
   // Update language ref when prop changes
   useEffect(() => {
     languageRef.current = language;
-    
-    // Restart recognition if language changed while recording
-    if (isRecording && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setTimeout(() => {
-        if (isRecording) {
-          startRecording();
-        }
-      }, 100);
-    }
   }, [language]);
 
   useEffect(() => {
@@ -38,38 +30,42 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
       recognition.interimResults = true;
 
       recognition.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
+        let interim = '';
+        let final = '';
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' ';
+            final += transcript + ' ';
           } else {
-            interimTranscript += transcript;
+            interim += transcript;
           }
         }
 
-        // Update local state with interim results
-        if (interimTranscript) {
-          setTranscript(interimTranscript);
+        // Accumulate final results (don't send yet - wait for user to stop)
+        if (final) {
+          accumulatedTranscriptRef.current += final;
+          setCurrentTranscript(accumulatedTranscriptRef.current);
         }
-
-        // Send final results to parent
-        if (finalTranscript) {
-          setTranscript('');
-          onTranscript(finalTranscript.trim());
-        }
+        
+        // Show interim results
+        setInterimTranscript(interim);
       };
 
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        if (event.error === 'no-speech') {
-          // Auto-restart if no speech detected
-          if (isRecording) {
-            recognition.start();
+        // On no-speech, just restart silently if still recording
+        if (event.error === 'no-speech' || event.error === 'aborted') {
+          // Don't stop - let user continue when ready
+          if (recognitionRef.current && isRecording) {
+            try {
+              recognition.start();
+            } catch (e) {
+              // Already started
+            }
           }
-        } else {
+        } else if (event.error !== 'aborted') {
+          // Real error - stop recording
           setIsRecording(false);
           onRecordingChange(false);
         }
@@ -77,11 +73,12 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
 
       recognition.onend = () => {
         // Auto-restart if still supposed to be recording
+        // This keeps the mic open even during pauses
         if (isRecording) {
           try {
             recognition.start();
           } catch (error) {
-            console.error('Failed to restart recognition:', error);
+            // Already running or other issue
           }
         }
       };
@@ -91,10 +88,22 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Already stopped
+        }
       }
     };
   }, []);
+
+  // Track isRecording changes for the onend handler
+  useEffect(() => {
+    // Store in a way the event handlers can access
+    if (recognitionRef.current) {
+      recognitionRef.current._isRecording = isRecording;
+    }
+  }, [isRecording]);
 
   // Update parent when recording state changes
   useEffect(() => {
@@ -105,35 +114,59 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
     if (!recognitionRef.current || disabled) return;
 
     try {
+      // Reset accumulated transcript
+      accumulatedTranscriptRef.current = '';
+      setCurrentTranscript('');
+      setInterimTranscript('');
+      
       // Set language before starting
       const langCode = languageRef.current === 'es' ? 'es-ES' : 'en-US';
       recognitionRef.current.lang = langCode;
       
       recognitionRef.current.start();
       setIsRecording(true);
-      setTranscript('');
     } catch (error) {
       console.error('Failed to start recording:', error);
     }
   };
 
-  const stopRecording = () => {
+  const stopAndSubmit = () => {
     if (!recognitionRef.current) return;
 
     try {
-      recognitionRef.current.stop();
       setIsRecording(false);
-      setTranscript('');
+      recognitionRef.current.stop();
+      
+      // Get the accumulated transcript
+      const finalTranscript = accumulatedTranscriptRef.current.trim();
+      
+      // Submit if we have content
+      if (finalTranscript) {
+        onTranscript(finalTranscript);
+      }
+      
+      // Reset
+      accumulatedTranscriptRef.current = '';
+      setCurrentTranscript('');
+      setInterimTranscript('');
     } catch (error) {
       console.error('Failed to stop recording:', error);
     }
   };
 
-  const toggleRecording = () => {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
+  const cancelRecording = () => {
+    if (!recognitionRef.current) return;
+
+    try {
+      setIsRecording(false);
+      recognitionRef.current.stop();
+      
+      // Reset without submitting
+      accumulatedTranscriptRef.current = '';
+      setCurrentTranscript('');
+      setInterimTranscript('');
+    } catch (error) {
+      console.error('Failed to cancel recording:', error);
     }
   };
 
@@ -160,32 +193,67 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
 
   return (
     <div className="voice-recorder">
-      <button
-        type="button"
-        onClick={toggleRecording}
-        disabled={disabled}
-        className={`voice-button ${isRecording ? 'recording' : ''}`}
-        title={isRecording ? 'Stop recording' : 'Start recording'}
-      >
-        {isRecording ? (
-          <>
+      {!isRecording ? (
+        <button
+          type="button"
+          onClick={startRecording}
+          disabled={disabled}
+          className="voice-button start"
+          title="Start recording"
+        >
+          🎤 Voice
+        </button>
+      ) : (
+        <div className="recording-controls">
+          <div className="recording-indicator">
             <span className="pulse"></span>
-            🎤 Recording...
-          </>
-        ) : (
-          <>🎤 Voice</>
-        )}
-      </button>
+            <span className="recording-text">Recording...</span>
+          </div>
+          
+          <div className="recording-buttons">
+            <button
+              type="button"
+              onClick={cancelRecording}
+              className="voice-button cancel"
+              title="Cancel recording"
+            >
+              ✕ Cancel
+            </button>
+            <button
+              type="button"
+              onClick={stopAndSubmit}
+              className="voice-button submit"
+              title="Stop and submit"
+            >
+              ✓ Done
+            </button>
+          </div>
+        </div>
+      )}
 
-      {transcript && (
-        <div className="interim-transcript">
-          <span className="label">Listening:</span> {transcript}
+      {isRecording && (currentTranscript || interimTranscript) && (
+        <div className="transcript-preview">
+          <div className="transcript-label">What I heard:</div>
+          <div className="transcript-text">
+            {currentTranscript}
+            {interimTranscript && (
+              <span className="interim">{interimTranscript}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isRecording && !currentTranscript && !interimTranscript && (
+        <div className="waiting-hint">
+          🎧 Listening... Take your time, speak when ready.
         </div>
       )}
 
       <style jsx>{`
         .voice-recorder {
-          position: relative;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
         }
 
         .voice-button {
@@ -200,11 +268,11 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
           color: #2196F3;
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 8px;
-          position: relative;
         }
 
-        .voice-button:hover:not(:disabled) {
+        .voice-button.start:hover:not(:disabled) {
           background: #e3f2fd;
         }
 
@@ -213,51 +281,110 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
           cursor: not-allowed;
         }
 
-        .voice-button.recording {
-          background: #f44336;
-          color: white;
-          border-color: #f44336;
-          animation: glow 1.5s infinite;
+        .recording-controls {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding: 16px;
+          background: #ffebee;
+          border: 2px solid #f44336;
+          border-radius: 8px;
+        }
+
+        .recording-indicator {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          justify-content: center;
         }
 
         .pulse {
-          width: 8px;
-          height: 8px;
-          background: white;
+          width: 12px;
+          height: 12px;
+          background: #f44336;
           border-radius: 50%;
           animation: pulse 1s infinite;
+        }
+
+        .recording-text {
+          font-weight: 600;
+          color: #c62828;
+          font-size: 16px;
+        }
+
+        .recording-buttons {
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+        }
+
+        .voice-button.cancel {
+          background: white;
+          border-color: #9e9e9e;
+          color: #666;
+          flex: 1;
+        }
+
+        .voice-button.cancel:hover {
+          background: #f5f5f5;
+          border-color: #666;
+        }
+
+        .voice-button.submit {
+          background: #4CAF50;
+          border-color: #4CAF50;
+          color: white;
+          flex: 1;
+        }
+
+        .voice-button.submit:hover {
+          background: #43a047;
         }
 
         @keyframes pulse {
           0%, 100% {
             opacity: 1;
+            transform: scale(1);
           }
           50% {
-            opacity: 0.3;
+            opacity: 0.5;
+            transform: scale(1.2);
           }
         }
 
-        @keyframes glow {
-          0%, 100% {
-            box-shadow: 0 0 5px rgba(244, 67, 54, 0.5);
-          }
-          50% {
-            box-shadow: 0 0 20px rgba(244, 67, 54, 0.8);
-          }
+        .transcript-preview {
+          padding: 12px;
+          background: white;
+          border: 2px solid #e0e0e0;
+          border-radius: 6px;
         }
 
-        .interim-transcript {
-          margin-top: 8px;
-          padding: 8px 12px;
+        .transcript-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #666;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+        }
+
+        .transcript-text {
+          font-size: 14px;
+          color: #333;
+          line-height: 1.5;
+        }
+
+        .interim {
+          color: #999;
+          font-style: italic;
+        }
+
+        .waiting-hint {
+          padding: 12px;
           background: #e3f2fd;
           border-radius: 6px;
-          font-size: 14px;
           color: #1565c0;
-        }
-
-        .label {
-          font-weight: 600;
-          margin-right: 4px;
+          font-size: 14px;
+          text-align: center;
         }
       `}</style>
     </div>

@@ -1,11 +1,18 @@
 import { formatPrice } from '../lib/pricingCatalog';
 
-export default function DataTable({ data }) {
+export default function DataTable({ data, onEdit, editable = false }) {
   const { workOrderNumber, unitNumber, address, unitSquareFeet, unitLayout, workItems } = data;
 
   return (
     <div className="data-table">
-      <h3>Turnover Assessment</h3>
+      <div className="table-header">
+        <h3>Turnover Assessment</h3>
+        {editable && workItems.length > 0 && (
+          <button className="edit-btn" onClick={onEdit}>
+            ✏️ Edit Table
+          </button>
+        )}
+      </div>
       
       {/* Project Info */}
       <div className="section">
@@ -48,6 +55,7 @@ export default function DataTable({ data }) {
                   <th>Item</th>
                   <th>Description</th>
                   <th>Unit</th>
+                  <th>Amount</th>
                   <th>Multiplier</th>
                   <th>Price Per Unit</th>
                   <th>Total</th>
@@ -66,6 +74,7 @@ export default function DataTable({ data }) {
                     <td>{item.description || '—'}</td>
                     <td><span className="unit-badge">{item.unit || '—'}</span></td>
                     <td className="numeric">{item.multiplier || '—'}</td>
+                    <td className="numeric">1</td>
                     <td className="numeric">
                       {item.pricePerUnit ? formatPrice(item.pricePerUnit, item.materialsCost) : '—'}
                     </td>
@@ -78,10 +87,11 @@ export default function DataTable({ data }) {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan="6" className="total-label">Grand Total</td>
+                  <td colSpan="7" className="total-label">Grand Total</td>
                   <td className="total grand-total">
                     ${workItems.reduce((sum, item) => sum + (item.total || 0), 0).toFixed(2)}
                   </td>
+                  <td></td>
                 </tr>
               </tfoot>
             </table>
@@ -98,10 +108,33 @@ export default function DataTable({ data }) {
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
-        h3 {
-          margin-top: 0;
+        .table-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
           margin-bottom: 20px;
+        }
+        
+        h3 {
+          margin: 0;
           color: #333;
+        }
+        
+        .edit-btn {
+          padding: 8px 16px;
+          background: #e3f2fd;
+          border: 2px solid #2196F3;
+          border-radius: 6px;
+          color: #1976d2;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .edit-btn:hover {
+          background: #2196F3;
+          color: white;
         }
         
         h4 {
