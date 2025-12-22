@@ -113,19 +113,28 @@ export default function PhotoGallery({ photos, onPhotosChange }) {
             <div 
               key={photo.id} 
               className="photo-card"
-              onClick={() => setSelectedPhoto(photo)}
             >
-              <div className="photo-thumbnail">
+              <div 
+                className="photo-thumbnail"
+                onClick={() => setSelectedPhoto(photo)}
+                title="Click to enlarge"
+              >
                 <img src={photo.url} alt={photo.name} />
+                <div className="zoom-hint">🔍</div>
               </div>
               <div className="photo-info">
                 <div className="photo-name">{photo.name}</div>
                 {photo.sizeKB && (
                   <div className="photo-size">{photo.sizeKB} KB</div>
                 )}
-                {photo.caption && (
-                  <div className="photo-caption">{photo.caption}</div>
-                )}
+                <input
+                  type="text"
+                  placeholder="Add notes..."
+                  value={photo.caption || ''}
+                  onChange={(e) => updateCaption(photo.id, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-caption-input"
+                />
               </div>
               <button 
                 onClick={(e) => {
@@ -261,10 +270,12 @@ export default function PhotoGallery({ photos, onPhotosChange }) {
         }
 
         .photo-thumbnail {
+          position: relative;
           width: 100%;
           height: 200px;
           overflow: hidden;
           background: #f5f5f5;
+          cursor: pointer;
         }
 
         .photo-thumbnail img {
@@ -299,6 +310,44 @@ export default function PhotoGallery({ photos, onPhotosChange }) {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+
+        .inline-caption-input {
+          width: 100%;
+          padding: 8px;
+          border: 1px solid #e0e0e0;
+          border-radius: 4px;
+          font-size: 12px;
+          font-family: inherit;
+          margin-top: 8px;
+          transition: border-color 0.2s;
+        }
+
+        .inline-caption-input:focus {
+          outline: none;
+          border-color: #2196F3;
+          box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+        }
+
+        .inline-caption-input::placeholder {
+          color: #999;
+        }
+
+        .zoom-hint {
+          position: absolute;
+          bottom: 8px;
+          right: 8px;
+          background: rgba(0, 0, 0, 0.6);
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+
+        .photo-thumbnail:hover .zoom-hint {
+          opacity: 1;
         }
         
         .compressing-banner {

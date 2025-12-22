@@ -371,5 +371,19 @@ With progress feedback, users understand what's happening!
 
 ---
 
-*Last updated: November 2025*
+## PDF Generation Feature
+
+For generating PDFs from turnover sheets with photos, see:
+- **[PDF_GENERATION_SCRIPT.md](./PDF_GENERATION_SCRIPT.md)** - Complete guide and script
+- **[scripts/PDFGenerator.gs](./scripts/PDFGenerator.gs)** - Standalone script file
+
+### Features:
+- Print area: Columns A:I fit to letter-size PDF
+- Smart page breaks (after TOTAL row, fallback to row 6 or 4)
+- Photo gallery: 4"×6" photos with notes space, 2 per page
+- Auto-save to "PDFs" folder with matching filename
+
+---
+
+*Last updated: December 2024*
 
