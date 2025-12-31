@@ -1,50 +1,64 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import VoiceRecorder from './VoiceRecorder';
 import LanguageSelector from './LanguageSelector';
 
 export default function InputSection({ onSubmit, isProcessing, disabled, language, onLanguageChange }) {
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-  const [liveTranscript, setLiveTranscript] = useState('');
-  const [preRecordingText, setPreRecordingText] = useState('');
+  const [currentSpeech, setCurrentSpeech] = useState(''); // Full accumulated speech from recognition
+  const confirmedSpeechLengthRef = useRef(0); // How much speech user has "confirmed" by editing
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (input.trim() && !isProcessing && !isRecording) {
-      onSubmit(input, language);
+    const textToSubmit = getDisplayText();
+    if (textToSubmit.trim() && !isProcessing && !isRecording) {
+      onSubmit(textToSubmit, language);
       setInput('');
     }
   };
 
-  const handleVoiceTranscript = (transcript) => {
-    // Final transcript received - append to pre-recording text
-    if (transcript.trim()) {
-      const newText = preRecordingText.trim() 
-        ? `${preRecordingText.trim()} ${transcript.trim()}` 
-        : transcript.trim();
-      setInput(newText);
-    }
-    setLiveTranscript('');
-    setPreRecordingText('');
+  // Calculate what to show in textarea
+  const getDisplayText = () => {
+    if (!isRecording) return input;
+    
+    // Get any new speech since user last edited
+    const newSpeech = currentSpeech.slice(confirmedSpeechLengthRef.current).trim();
+    if (!newSpeech) return input;
+    
+    return input.trim() ? `${input.trim()} ${newSpeech}` : newSpeech;
+  };
+
+  const handleChange = (e) => {
+    // User is editing - their edit becomes the new base
+    setInput(e.target.value);
+    // Mark all current speech as "confirmed/incorporated" into their edit
+    confirmedSpeechLengthRef.current = currentSpeech.length;
   };
 
   const handleLiveTranscript = (transcript) => {
-    // Update live transcript display
-    setLiveTranscript(transcript);
+    setCurrentSpeech(transcript);
   };
 
   const handleRecordingChange = (recording) => {
     if (recording && !isRecording) {
-      // Just started recording - save current input
-      setPreRecordingText(input);
+      // Starting recording - reset speech tracking
+      confirmedSpeechLengthRef.current = 0;
+      setCurrentSpeech('');
     }
     setIsRecording(recording);
   };
 
-  // Display text: pre-recording text + live transcript while recording, otherwise just input
-  const displayText = isRecording 
-    ? (preRecordingText.trim() ? `${preRecordingText.trim()} ${liveTranscript}` : liveTranscript)
-    : input;
+  const handleVoiceTranscript = (finalTranscript) => {
+    // Append any unconfirmed speech to input
+    const newSpeech = finalTranscript.slice(confirmedSpeechLengthRef.current).trim();
+    if (newSpeech) {
+      setInput(prev => prev.trim() ? `${prev.trim()} ${newSpeech}` : newSpeech);
+    }
+    setCurrentSpeech('');
+    confirmedSpeechLengthRef.current = 0;
+  };
+
+  const displayText = getDisplayText();
 
   const placeholders = {
     en: "Describe the work needed... (e.g., '3 walls need paint in the living room')",
@@ -63,17 +77,16 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
         <div className="input-group">
           <textarea
             value={displayText}
-            onChange={(e) => !isRecording && setInput(e.target.value)}
+            onChange={handleChange}
             placeholder={placeholders[language] || placeholders.en}
             rows={4}
             disabled={disabled || isProcessing}
-            readOnly={isRecording}
             className={`input-textarea ${isRecording ? 'recording' : ''}`}
           />
           {isRecording && (
             <div className="recording-overlay">
               <span className="pulse-dot"></span>
-              <span>Listening...</span>
+              <span>Listening... (you can edit below)</span>
             </div>
           )}
         </div>
@@ -87,7 +100,7 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
           />
           <button 
             type="submit" 
-            disabled={disabled || isProcessing || !input.trim() || isRecording}
+            disabled={disabled || isProcessing || !displayText.trim() || isRecording}
             className="btn btn-primary"
           >
             {isProcessing ? 'Processing...' : language === 'es' ? 'Enviar' : 'Send'}
@@ -114,12 +127,14 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
         .input-textarea {
           width: 100%;
           padding: 12px;
+          padding-top: 36px;
           border: 2px solid #e0e0e0;
           border-radius: 6px;
           font-size: 16px;
           font-family: inherit;
           resize: vertical;
           transition: border-color 0.2s, background-color 0.2s;
+          min-height: 100px;
         }
         
         .input-textarea:focus {
@@ -134,13 +149,17 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
         
         .input-textarea.recording {
           border-color: #f44336;
-          background: #fff8f8;
-          cursor: default;
+          background: #fffafa;
+        }
+        
+        .input-textarea.recording:focus {
+          border-color: #f44336;
         }
         
         .recording-overlay {
           position: absolute;
           top: 8px;
+          left: 8px;
           right: 8px;
           display: flex;
           align-items: center;
@@ -148,7 +167,7 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
           padding: 4px 10px;
           background: #f44336;
           color: white;
-          border-radius: 12px;
+          border-radius: 4px;
           font-size: 12px;
           font-weight: 600;
         }
@@ -167,13 +186,17 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
         }
         
         .btn {
-          padding: 12px 24px;
+          padding: 16px 24px;
           border: none;
-          border-radius: 6px;
-          font-size: 16px;
+          border-radius: 8px;
+          font-size: 18px;
           font-weight: 600;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.15s;
+          min-height: 52px;
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
+          user-select: none;
         }
         
         .btn-primary {
@@ -183,6 +206,11 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
         
         .btn-primary:hover:not(:disabled) {
           background: #45a049;
+          transform: scale(1.02);
+        }
+        
+        .btn-primary:active:not(:disabled) {
+          transform: scale(0.97);
         }
         
         .btn:disabled {
