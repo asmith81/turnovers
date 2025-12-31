@@ -39,6 +39,56 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
       saveToHistory();
     }
   }, []);
+
+  // Prevent text selection while drawing (critical for iOS)
+  useEffect(() => {
+    if (isDrawing) {
+      // Prevent selection on the entire document while drawing
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
+      document.body.style.touchAction = 'none';
+      
+      // Also prevent any existing selections
+      if (window.getSelection) {
+        window.getSelection().removeAllRanges();
+      }
+    } else {
+      // Restore normal behavior when not drawing
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      document.body.style.touchAction = '';
+    }
+    
+    return () => {
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      document.body.style.touchAction = '';
+    };
+  }, [isDrawing]);
+
+  // Add native touch listeners with passive: false (required for iOS preventDefault)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const preventDefaultTouch = (e) => {
+      if (e.target === canvas) {
+        e.preventDefault();
+      }
+    };
+
+    // These must be added as native listeners with passive: false
+    // React's synthetic events are passive by default on touch events
+    canvas.addEventListener('touchstart', preventDefaultTouch, { passive: false });
+    canvas.addEventListener('touchmove', preventDefaultTouch, { passive: false });
+    canvas.addEventListener('touchend', preventDefaultTouch, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('touchstart', preventDefaultTouch);
+      canvas.removeEventListener('touchmove', preventDefaultTouch);
+      canvas.removeEventListener('touchend', preventDefaultTouch);
+    };
+  }, []);
   
   // Save current canvas state to history
   const saveToHistory = useCallback(() => {
@@ -200,7 +250,14 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
   }, [color, lineWidth, isLineLike, drawStraightLine]);
 
   const startDrawing = (e) => {
-    e.preventDefault(); // Prevent scrolling on touch
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Prevent iOS text selection
+    if (window.getSelection) {
+      window.getSelection().removeAllRanges();
+    }
+    
     const coords = getCoordinates(e);
     if (!coords) return;
     
@@ -221,7 +278,8 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
 
   const draw = (e) => {
     if (!isDrawing) return;
-    e.preventDefault(); // Prevent scrolling on touch
+    e.preventDefault();
+    e.stopPropagation();
     
     const coords = getCoordinates(e);
     if (!coords) return;
@@ -259,7 +317,12 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
     ctx.stroke();
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     // Clear hold timer
     if (holdTimerRef.current) {
       clearTimeout(holdTimerRef.current);
@@ -399,6 +462,8 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
           onTouchStart={startDrawing}
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
+          onTouchCancel={stopDrawing}
+          onContextMenu={(e) => e.preventDefault()}
           className={`canvas ${tool === 'eraser' ? 'eraser-cursor' : ''}`}
         />
         <div className="canvas-hint">
@@ -411,6 +476,12 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          /* Prevent any selection in the entire sketch component */
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+          -webkit-touch-callout: none;
         }
         
         .sketch-info {
@@ -460,6 +531,7 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
           display: flex;
           gap: 8px;
           align-items: center;
+
         }
 
         .tool-label {
@@ -583,6 +655,13 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           padding: 16px;
+          /* Prevent iOS text selection */
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+          /* Prevent callout/magnifier on iOS */
+          -webkit-touch-callout: none;
         }
 
         .canvas {
@@ -591,8 +670,16 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
           border: 2px solid #e0e0e0;
           border-radius: 6px;
           cursor: crosshair;
-          touch-action: none;
           background: white;
+          /* Critical: Prevent ALL touch behaviors except drawing */
+          touch-action: none;
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+          /* Prevent iOS tap highlight */
+          -webkit-tap-highlight-color: transparent;
         }
         
         .canvas.eraser-cursor {
@@ -624,4 +711,5 @@ export default function SketchCanvas({ sketch, onSketchChange }) {
     </div>
   );
 }
+
 
