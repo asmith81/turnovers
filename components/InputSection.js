@@ -15,10 +15,10 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
   };
 
   const handleVoiceTranscript = (transcript) => {
-    // Append to existing input or send immediately
+    // Put transcript into the text box for editing, don't auto-submit
     if (transcript.trim()) {
-      // Auto-submit voice input with language tag
-      onSubmit(transcript, language);
+      // Append to existing text with a space, or set if empty
+      setInput(prev => prev.trim() ? `${prev.trim()} ${transcript.trim()}` : transcript.trim());
     }
   };
 
@@ -42,9 +42,15 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
             onChange={(e) => setInput(e.target.value)}
             placeholder={placeholders[language] || placeholders.en}
             rows={4}
-            disabled={disabled || isProcessing || isRecording}
-            className="input-textarea"
+            disabled={disabled || isProcessing}
+            className={`input-textarea ${isRecording ? 'recording' : ''}`}
           />
+          {isRecording && (
+            <div className="recording-overlay">
+              <span className="pulse-dot"></span>
+              <span>Listening...</span>
+            </div>
+          )}
         </div>
         <div className="button-group">
           <VoiceRecorder 
@@ -76,6 +82,7 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
         
         .input-group {
           margin-bottom: 12px;
+          position: relative;
         }
         
         .input-textarea {
@@ -86,6 +93,7 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
           font-size: 16px;
           font-family: inherit;
           resize: vertical;
+          transition: border-color 0.2s;
         }
         
         .input-textarea:focus {
@@ -96,6 +104,39 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
         .input-textarea:disabled {
           background: #f5f5f5;
           cursor: not-allowed;
+        }
+        
+        .input-textarea.recording {
+          border-color: #f44336;
+          background: #fff8f8;
+        }
+        
+        .recording-overlay {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          background: #f44336;
+          color: white;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        
+        .pulse-dot {
+          width: 8px;
+          height: 8px;
+          background: white;
+          border-radius: 50%;
+          animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.2); }
         }
         
         .btn {
@@ -131,4 +172,3 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
     </div>
   );
 }
-
