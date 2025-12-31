@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function VoiceRecorder({ onTranscript, onRecordingChange, disabled, language = 'en' }) {
+export default function VoiceRecorder({ onTranscript, onLiveTranscript, onRecordingChange, disabled, language = 'en' }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
   const recognitionRef = useRef(null);
@@ -25,15 +25,18 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
       // Initialize speech recognition
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
-      recognition.interimResults = false; // Only final results for simplicity
+      recognition.interimResults = true; // Enable interim results for live display
 
       recognition.onresult = (event) => {
+        let interim = '';
         let final = '';
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             final += transcript + ' ';
+          } else {
+            interim += transcript;
           }
         }
 
@@ -41,16 +44,17 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
         if (final) {
           accumulatedTranscriptRef.current += final;
         }
+        
+        // Send live update (accumulated + interim) for display
+        if (onLiveTranscript) {
+          const liveText = (accumulatedTranscriptRef.current + interim).trim();
+          onLiveTranscript(liveText);
+        }
       };
 
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        // On no-speech or aborted, just stop gracefully
-        if (event.error === 'no-speech' || event.error === 'aborted') {
-          // Stop recording
-          finishRecording();
-        } else {
-          // Real error - stop recording
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
           finishRecording();
         }
       };
@@ -84,10 +88,15 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
     
     setIsRecording(false);
     
-    // Send accumulated transcript to parent
+    // Send final transcript to parent
     const finalTranscript = accumulatedTranscriptRef.current.trim();
     if (finalTranscript) {
       onTranscript(finalTranscript);
+    }
+    
+    // Clear live transcript
+    if (onLiveTranscript) {
+      onLiveTranscript('');
     }
     
     // Reset
@@ -109,6 +118,9 @@ export default function VoiceRecorder({ onTranscript, onRecordingChange, disable
       // Start recording
       try {
         accumulatedTranscriptRef.current = '';
+        if (onLiveTranscript) {
+          onLiveTranscript('');
+        }
         
         // Set language before starting
         const langCode = languageRef.current === 'es' ? 'es-ES' : 'en-US';

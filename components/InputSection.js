@@ -5,22 +5,46 @@ import LanguageSelector from './LanguageSelector';
 export default function InputSection({ onSubmit, isProcessing, disabled, language, onLanguageChange }) {
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [preRecordingText, setPreRecordingText] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (input.trim() && !isProcessing) {
+    if (input.trim() && !isProcessing && !isRecording) {
       onSubmit(input, language);
       setInput('');
     }
   };
 
   const handleVoiceTranscript = (transcript) => {
-    // Put transcript into the text box for editing, don't auto-submit
+    // Final transcript received - append to pre-recording text
     if (transcript.trim()) {
-      // Append to existing text with a space, or set if empty
-      setInput(prev => prev.trim() ? `${prev.trim()} ${transcript.trim()}` : transcript.trim());
+      const newText = preRecordingText.trim() 
+        ? `${preRecordingText.trim()} ${transcript.trim()}` 
+        : transcript.trim();
+      setInput(newText);
     }
+    setLiveTranscript('');
+    setPreRecordingText('');
   };
+
+  const handleLiveTranscript = (transcript) => {
+    // Update live transcript display
+    setLiveTranscript(transcript);
+  };
+
+  const handleRecordingChange = (recording) => {
+    if (recording && !isRecording) {
+      // Just started recording - save current input
+      setPreRecordingText(input);
+    }
+    setIsRecording(recording);
+  };
+
+  // Display text: pre-recording text + live transcript while recording, otherwise just input
+  const displayText = isRecording 
+    ? (preRecordingText.trim() ? `${preRecordingText.trim()} ${liveTranscript}` : liveTranscript)
+    : input;
 
   const placeholders = {
     en: "Describe the work needed... (e.g., '3 walls need paint in the living room')",
@@ -38,11 +62,12 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
       <form onSubmit={handleSubmit}>
         <div className="input-group">
           <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={displayText}
+            onChange={(e) => !isRecording && setInput(e.target.value)}
             placeholder={placeholders[language] || placeholders.en}
             rows={4}
             disabled={disabled || isProcessing}
+            readOnly={isRecording}
             className={`input-textarea ${isRecording ? 'recording' : ''}`}
           />
           {isRecording && (
@@ -55,7 +80,8 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
         <div className="button-group">
           <VoiceRecorder 
             onTranscript={handleVoiceTranscript}
-            onRecordingChange={setIsRecording}
+            onLiveTranscript={handleLiveTranscript}
+            onRecordingChange={handleRecordingChange}
             disabled={disabled || isProcessing}
             language={language}
           />
@@ -93,7 +119,7 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
           font-size: 16px;
           font-family: inherit;
           resize: vertical;
-          transition: border-color 0.2s;
+          transition: border-color 0.2s, background-color 0.2s;
         }
         
         .input-textarea:focus {
@@ -109,6 +135,7 @@ export default function InputSection({ onSubmit, isProcessing, disabled, languag
         .input-textarea.recording {
           border-color: #f44336;
           background: #fff8f8;
+          cursor: default;
         }
         
         .recording-overlay {
