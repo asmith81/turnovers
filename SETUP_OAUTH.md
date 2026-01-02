@@ -34,6 +34,12 @@ GOOGLE_CLIENT_SECRET=paste-your-actual-client-secret-here
 # Google Sheets
 GOOGLE_SHEETS_ID=paste-your-sheet-id-from-url
 
+# Google Drive (optional - for shared folder setup)
+# If set, sketches and photos will be uploaded to this folder
+# Get the folder ID from the Drive URL: drive.google.com/drive/folders/FOLDER_ID_HERE
+# Leave empty to create folders in the user's Drive root
+GOOGLE_DRIVE_FOLDER_ID=
+
 # NextAuth (generate secret below)
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=generate-this-below
